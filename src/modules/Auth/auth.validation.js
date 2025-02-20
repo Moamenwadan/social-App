@@ -30,3 +30,6 @@ export const reset_password = joi.object({
   email: joi.string().required(),
   confirmPassword: joi.string().valid(joi.ref("password")).required(),
 });
+export const new_access = joi.object({
+  token: joi.string().required(),
+});

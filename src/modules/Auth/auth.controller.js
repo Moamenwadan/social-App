@@ -6,6 +6,7 @@ import {
   generateOTP,
   forget_password,
   reset_password,
+  new_access,
 } from "./auth.service.js";
 import validation from "../../middleware/validation.midddleware.js";
 import * as authSchema from "./auth.validation.js";
@@ -29,4 +30,5 @@ router.post(
   validation(authSchema.reset_password),
   reset_password
 );
+router.post("/new_access", validation(authSchema.new_access), new_access);
 export default router;

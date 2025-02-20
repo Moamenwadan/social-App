@@ -8,7 +8,7 @@ import { emailEmitter } from "../../utils/emails/email.event.js";
 import joi from "joi";
 import { hash, compareHash } from "../../utils/hashing/hash.js";
 import { encrypt } from "../../utils/encryption/encryption.js";
-import { generateToken } from "../../utils/token/token.js";
+import { generateToken, verifyToken } from "../../utils/token/token.js";
 import Randomstring from "randomstring";
 import OTP from "../../DB/models/otp.model.js";
 import sendEmail from "../../utils/emails/sendEmail.js";
@@ -67,17 +67,10 @@ export const register = asyncHandler(async (req, res, next) => {
 export const login = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
-  // console.log(user);
-  // console.log(user._id);
-  // console.log(user.email);
+
   // check if user exist
   if (!user)
     return res.status(403).json({ success: false, message: "Invalid Email" });
-  // check password
-  // if (password !== user.password)
-  //   return res
-  //     .status(403)
-  //     .json({ success: false, message: "Invalid password" });
   // check if user existence
   if (!user.isActivated)
     return next(new Error("you must activate acount"), { cause: 400 });
@@ -96,13 +89,19 @@ export const login = asyncHandler(async (req, res, next) => {
   //   { id: user._id, email: user.email, isloggedIn: true },
   //   "gjhghjgjfhgfhgfhgfhg"
   // );
-  const token = generateToken({
+  const access_token = generateToken({
     payload: { id: user._id, email: user.email, isloggedIn: true },
+    options: { expiresIn: "2d" },
+  });
+  const refresh_token = generateToken({
+    payload: { id: user._id, email: user.email, isloggedIn: true },
+    options: { expiresIn: "30d" },
   });
   return res.status(200).json({
     success: true,
     message: "successfully login ",
-    token,
+    access_token,
+    refresh_token,
   });
 });
 export const activateAccount = asyncHandler(async (req, res, next) => {
@@ -137,9 +136,26 @@ export const reset_password = asyncHandler(async (req, res, next) => {
   const user = await User.findOne({ email: email });
   if (!user) return next(new Error("the user doesn't exist", { cause: 404 }));
   user.password = hash({ plainText: password, rounds: 8 });
-
   await user.save();
   return res
     .status(201)
     .json({ success: true, message: "reset password successfully ", user });
+});
+export const new_access = asyncHandler(async (req, res, next) => {
+  const { token } = req.body;
+
+  const payload = verifyToken({
+    token: token,
+    options: { expiresIn: "1d" },
+  });
+  const user = await User.findById(payload.id);
+  if (!user) return next(new Error("the user doesn't exist", { cause: 404 }));
+  const access_token = generateToken({
+    payload: { id: user.id, email: user.email, isloggedIn: true },
+  });
+  return res.status(201).json({
+    success: true,
+    message: "new access successfully ",
+    access_token,
+  });
 });
